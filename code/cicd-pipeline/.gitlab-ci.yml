@@ -1,0 +1,107 @@
+image: python:latest
+
+stages:
+  - upload
+  - monitor
+
+variables:
+  JOBS: "crop-classification landslide-segmentation biomass-regression"
+  BRANCH: <YOUR BRANCH NAME HERE>
+  COS_BUCKET: <YOUR BUCKET NAME HERE>
+  AWS_DEFAULT_REGION: <YOUR AWS REGION HERE>
+  AWS_ENDPOINT_URL: <YOUR AWS ENDPOINT HERE>
+  POLL_TIMEOUT_MINUTES: 120 # Max 120 minutes (otherwise adjust hard-coded timeout for monitor stage)
+  DVC_REMOTE_URL: <YOUR DVC REMOTE URL HERE>
+
+cache:
+  paths:
+    - .cache/pip
+
+### PRE-STAGE: Run before every job, set up the isolated environments for each stage ###
+before_script: 
+  - apt-get update && apt-get install -y awscli 
+  - pip install virtualenv
+  - virtualenv venv
+  - source venv/bin/activate
+
+### STAGE 1: Upload updated config file to s3 bucket to trigger the execution of jobs on cluster side ### 
+upload-config:
+  stage: upload
+  script:
+    - aws s3 cp "./config.env" s3://$COS_BUCKET/configs/config.env
+    - echo "Uploaded updated config file to s3 bucket."
+
+### STAGE 2: Wait for commit by the orchestration agent running on the cluster and determine pipeline status based on job results ###
+monitor-results:
+  stage: monitor
+  needs: [upload-config]
+  timeout: 125m
+  script:
+    - pip install dvc[s3]
+    - |
+      set -euo pipefail
+
+      # ensure env vars
+      : "${JOBS:?JOBS must be set}"
+      : "${BRANCH:?BRANCH must be set}"
+      : "${POLL_TIMEOUT_MINUTES:?POLL_TIMEOUT_MINUTES must be set}"
+
+      # split safely
+      read -r -a JOBS_ARRAY <<< "$JOBS"
+
+      INITIAL_COMMIT=$(git rev-parse HEAD)
+
+      echo "Waiting for GitLab CI commit on branch '$BRANCH'…"
+      for ((i=1; i<=POLL_TIMEOUT_MINUTES; i++)); do
+        echo "$i/$POLL_TIMEOUT_MINUTES: checking…"
+        git fetch origin "$BRANCH" --quiet
+
+        # find the first new commit by the orchestration agent
+        FOUND_COMMIT=$(
+          git rev-list \
+            --committer="GitLab CI" \
+            --max-count=1 \
+            origin/"$BRANCH" --not "$INITIAL_COMMIT"
+        )
+
+        if [[ -n "$FOUND_COMMIT" ]]; then
+          echo "Found commit: $FOUND_COMMIT"
+          break
+        fi
+
+        sleep 60
+      done
+
+      if [[ -z "$FOUND_COMMIT" ]]; then
+        echo "Timeout: no orchestration commit within $POLL_TIMEOUT_MINUTES minutes."
+        exit 1
+      fi
+
+      echo "Checking out commit $FOUND_COMMIT"
+      git checkout --quiet "$FOUND_COMMIT"
+
+      echo "Pulling DVC-tracked artifacts: errors and outputs…"
+      dvc pull err out
+
+      FAIL=0
+      echo "Validating output files…"
+      for JOB in "${JOBS_ARRAY[@]}"; do
+        OUT_FILE="out/${JOB}.out"
+        ERR_FILE="err/${JOB}.err"
+
+        if [[ ! -s "$OUT_FILE" ]]; then
+          echo "Job $JOB did not produce an output; showing $ERR_FILE:"
+          cat "$ERR_FILE"
+          FAIL=1
+        else
+          echo "Job $JOB output:"
+          cat "$OUT_FILE"
+        fi
+      done
+
+      if (( FAIL )); then
+        echo "GeoFM evaluation pipeline failed: one or more jobs did not produce an output."
+        exit 1
+      else
+        echo "GeoFM evaluation pipeline ran successfully. Artifacts can be accessed by checking out commit $FOUND_COMMIT locally and running 'dvc pull'."
+      fi

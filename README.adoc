@@ -1,4 +1,4 @@
-= MLOps for Geospatial Foundation Model Evaluation 
+= MLOps for Geospatial Foundation Models 
 
 This repository holds the digital appendix for my Master Thesis @ Reutlingen University.
 
@@ -8,3 +8,11 @@ Included in this repository are:
 ** link:literature-review/initial-search[Initial search artifacts]
 ** link:literature-review/snowballing[Snowballing artifacts]
 ** link:literature-review/results[Analysis results]
+
+* Code
+** link:code/cicd-pipeline[CI/CD pipeline code]
+** link:code/config-file[Pipeline config file]
+** link:code/fine-tuning-scripts[Fine-tuning scripts]
+** link:code/orchestration-agents[Cluster-side orchestration agents]
+
+A complete documentation of the code mentioned above can be found link:code/README.adoc[here].
