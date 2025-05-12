@@ -6,12 +6,12 @@ This documentation covers the code artifacts created as part of my Master's Thes
 The geospatial MLOps pipeline is designed to efficiently, reliably, and reproducibly evaluate geospatial Foundation Models (geoFMs).
 It utilizes three individual downstream tasks to assess generalizability, seamless HPC integration to handle compute-intensive fine-tuning jobs, and extensive versioning of all resulting artifacts using Git and DVC. 
 
-.The pipeline consists of three main software components:
+._The pipeline consists of three main software components:_
 * link:cicd-pipeline/.gitlab-ci.yml[CI/CD pipeline]
 * link:config-file/config.env[Pipeline config file]
 * link:orchestration-agents[Cluster-side orchestration agent]
 
-.And four hardware components:
+._And four hardware components:_
 * Local machine (dev environment)
 * CI/CD runner (In this case, a privately hosted Gitlab runner is used)
 * Storage (In this case, a Cloud Object Store (COS))
@@ -19,14 +19,18 @@ It utilizes three individual downstream tasks to assess generalizability, seamle
 
 The UML activity diagram below visualizes the pipeline flow across the hardware components.
 
-.Pipeline flow across hardware components.
+++++
+<br>
+++++
+
+._Pipeline flow across hardware components._
 image::figures/uml-activity-diagram.png[]
 
 [[datasets]]
 == Datasets
 This section lists the downstream tasks and corresponding datasets used in the automated evaluation of geoFMs within this pipeline.
 
-.Downstream task : dataset
+._Downstream task : dataset_
 * Multi-temporal crop classification : link:https://huggingface.co/datasets/ibm-nasa-geospatial/multi-temporal-crop-classification[multi-temporal-crop-classification] 
 * Landslide detection : link:https://huggingface.co/datasets/ibm-nasa-geospatial/Landslide4sense[Landslide4sense]
 * Above-ground biomass estimation : link:https://drive.google.com/file/d/1k-SuberK2iq1NpiP1e9puNp7RVlg7I-X[granite-geospatial-biomass-dataset] 
@@ -34,16 +38,16 @@ This section lists the downstream tasks and corresponding datasets used in the a
 == Prerequisites
 This section lists the prerequisites needed to run the automated geospatial MLOps pipeline for geoFM evaluation.
 
-.Local machine
+._Local machine_
 . Clone the git repository to your local machine
 . Make sure to pull the latest commit before pushing changes to the config file 
 
-.CI/CD pipeline
+._CI/CD pipeline_
 . Place the pipeline definition (.gitlab-ci.yml or equivalent) in the same repository as the rest of the code so it gets triggered whenever there are new commits
 . Insert your custom parameters (S3 endpoint etc.) into the pipeline definition
 . Set up secrets (S3 credentials) as CI/CD variables so they can be accessed by the pipeline
 
-.HPC cluster
+._HPC cluster_
 . Install ``TerraTorch`` (tested on version 1.0) via pip
 . Install ``dvc[s3]`` via pip
 . Install ``dotenv`` via pip
@@ -55,7 +59,7 @@ This section lists the prerequisites needed to run the automated geospatial MLOp
 == Running the Pipeline
 A typical pipeline run looks like this: 
 
-.Steps
+._Steps_
 . Start the cluster-side orchestration agent by navigating to the respective path within the cloned repository on your HPC cluster and running this command: ``python worker.py`` 
 . Update the link:config-file/config.env[config file] according to your needs (e.g., plug in a different Prithvi-EO version for evaluation or change the number of workers to fit your system)
 . Commit your changes to the config file using a descriptive commit message for later reference (e.g., "Experiment 1: Prithvi-EO v2 300M, 20 epochs")
@@ -70,24 +74,48 @@ A typical pipeline run looks like this:
 == Example Outputs 
 The pipeline produces three main outputs, depending on the experiment's success: 
 
-.Artifacts
+._Artifacts_
 . Error files, forwarding potential errors that occurred on cluster-side when running the fine-tuning jobs
 . Output files, including model performance metrics and resource usage statistics 
 . Plotted predictions for a random selection of samples
 
+++++
+<br>
+++++
+
 Below are examples of these artifacts, produced by the automated evaluation pipeline.
 
-.Example of error file for experiment with faulty augmentations to the test set.
+++++
+<br>
+++++
+
+._Example of error file for experiment with faulty augmentations to the test set._
 image::figures/err.png[]
 
-.Example of outputs including downstream model performance and resource usage statistics for Prithvi-EO v2 300M, fine-tuned to the classification downstream task for 60 epochs.
+++++
+<br><br><br>
+++++
+
+._Example of outputs including downstream model performance and resource usage statistics for Prithvi-EO v2 300M, fine-tuned to the classification downstream task for 60 epochs._
 image::figures/out.png[]
 
-.Example of plotted predictions, Prithvi-EO v2 300M, fine-tuned to the classification downstream task for 60 epochs.
+++++
+<br><br><br>
+++++
+
+._Example of plotted predictions, Prithvi-EO v2 300M, fine-tuned to the classification downstream task for 60 epochs._
 image::figures/classification-sample.png[]
 
-.Example of plotted predictions, Prithvi-EO v2 300M, fine-tuned to the segmentation downstream task for 60 epochs.
+++++
+<br><br><br>
+++++
+
+._Example of plotted predictions, Prithvi-EO v2 300M, fine-tuned to the segmentation downstream task for 60 epochs._
 image::figures/segmentation-sample.png[]
 
-.Example of plotted predictions, Prithvi-EO v2 300M, fine-tuned to the regression downstream task for 60 epochs.
+++++
+<br><br><br>
+++++
+
+._Example of plotted predictions, Prithvi-EO v2 300M, fine-tuned to the regression downstream task for 60 epochs._
 image::figures/regression-sample.png[]
